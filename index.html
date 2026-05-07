@@ -1,0 +1,610 @@
+```html
+<!DOCTYPE html>
+<html lang="it">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
+    <title>Metamorfosi</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;600;800&display=swap');
+        
+        :root {
+            --bg-color: #000000;
+            --accent: #6366f1;
+            --safe-top: env(safe-area-inset-top);
+            --safe-bottom: env(safe-area-inset-bottom);
+        }
+
+        * {
+            -webkit-tap-highlight-color: transparent;
+            touch-action: manipulation;
+            box-sizing: border-box;
+            outline: none;
+        }
+
+        body {
+            font-family: 'Plus Jakarta Sans', sans-serif;
+            background-color: var(--bg-color);
+            color: white;
+            margin: 0;
+            padding: 0;
+            height: 100vh;
+            width: 100vw;
+            overflow: hidden;
+            display: flex;
+            flex-direction: column;
+        }
+
+        .app-container {
+            display: flex;
+            flex-direction: column;
+            height: 100vh;
+            padding-top: var(--safe-top);
+            padding-bottom: var(--safe-bottom);
+            width: 100%;
+            position: relative;
+        }
+
+        .content-area {
+            flex: 1;
+            position: relative;
+            overflow: hidden;
+            width: 100%;
+        }
+
+        .app-wrapper {
+            display: flex;
+            height: 100%;
+            width: 500%; /* 5 schermate */
+            transition: transform 0.5s cubic-bezier(0.16, 1, 0.3, 1);
+        }
+
+        .screen {
+            width: 20%;
+            height: 100%;
+            display: flex;
+            flex-direction: column;
+            padding: 20px;
+            position: relative;
+        }
+
+        .bottom-nav {
+            height: 80px;
+            background: #0a0a0a;
+            border-top: 1px solid #262626;
+            display: flex;
+            justify-content: space-around;
+            align-items: center;
+            z-index: 1000;
+            padding-bottom: env(safe-area-inset-bottom);
+        }
+
+        .nav-item {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            color: #444;
+            font-size: 10px;
+            font-weight: 700;
+            flex: 1;
+            cursor: pointer;
+            transition: all 0.3s ease;
+        }
+
+        .nav-item.active { color: var(--accent); transform: translateY(-4px); }
+        .nav-icon { font-size: 24px; margin-bottom: 2px; }
+
+        .mode-overlay {
+            position: absolute;
+            inset: 0;
+            background: var(--bg-color);
+            z-index: 200;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            padding: 30px;
+            text-align: center;
+        }
+
+        .word-main {
+            font-size: clamp(2.5rem, 10vh, 4rem);
+            font-weight: 800;
+            letter-spacing: -2px;
+            text-transform: uppercase;
+            line-height: 1;
+            margin-bottom: 20px;
+        }
+
+        .game-input {
+            width: 100%;
+            background: #111;
+            border: 2px solid #222;
+            border-radius: 20px;
+            padding: 16px;
+            color: white;
+            font-size: 1.2rem;
+            font-weight: 700;
+            text-align: center;
+            appearance: none;
+        }
+
+        .game-input:focus { border-color: var(--accent); background: #151515; }
+
+        .pill {
+            padding: 6px 14px;
+            background: #111;
+            border-radius: 50px;
+            font-size: 11px;
+            font-weight: 800;
+            color: #666;
+            border: 1px solid #222;
+            margin: 0 4px;
+        }
+
+        .btn-primary {
+            background: var(--accent);
+            color: white;
+            padding: 16px 48px;
+            border-radius: 99px;
+            font-weight: 900;
+            font-size: 1rem;
+            text-transform: uppercase;
+            border: none;
+            cursor: pointer;
+            box-shadow: 0 10px 20px rgba(99, 102, 241, 0.2);
+        }
+
+        #error-toast {
+            position: fixed;
+            top: 20px;
+            left: 50%;
+            transform: translateX(-50%) translateY(-100px);
+            background: rgba(239, 68, 68, 0.95);
+            color: white;
+            padding: 12px 24px;
+            border-radius: 16px;
+            font-size: 13px;
+            font-weight: 800;
+            z-index: 3000;
+            transition: transform 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+            pointer-events: none;
+        }
+        #error-toast.show { transform: translateX(-50%) translateY(20px); }
+
+        .diff-container {
+            display: flex;
+            gap: 8px;
+            margin: 20px 0;
+            width: 100%;
+            max-width: 320px;
+        }
+        .diff-option {
+            flex: 1;
+            padding: 14px 4px;
+            border-radius: 16px;
+            font-size: 11px;
+            font-weight: 900;
+            cursor: pointer;
+            transition: all 0.2s ease;
+            border: 2px solid #1a1a1a;
+            background: #0d0d0d;
+            color: #555;
+            text-transform: uppercase;
+            text-align: center;
+        }
+        
+        .diff-option.easy.selected { background: #065f46; color: #fff; border-color: #10b981; }
+        .diff-option.medium.selected { background: #92400e; color: #fff; border-color: #f59e0b; }
+        .diff-option.hard.selected { background: #7f1d1d; color: #fff; border-color: #ef4444; }
+
+        .hidden { display: none !important; }
+
+        .bot-thinking {
+            animation: pulse 1s infinite alternate;
+        }
+        @keyframes pulse {
+            from { opacity: 0.5; transform: scale(0.98); }
+            to { opacity: 1; transform: scale(1); }
+        }
+
+        .scroll-container {
+            max-height: 55vh;
+            overflow-y: auto;
+            padding-right: 4px;
+        }
+        .scroll-container::-webkit-scrollbar { display: none; }
+    </style>
+</head>
+<body>
+
+    <div id="error-toast">ERRORE</div>
+
+    <!-- Schermata Tutorial -->
+    <div id="tutorial-overlay" class="mode-overlay" style="z-index: 2000;">
+        <div id="step-1" class="w-full flex flex-col items-center">
+            <h1 class="text-5xl font-900 italic mb-4 tracking-tighter">METAMORFOSI</h1>
+            <p class="text-zinc-500 font-bold mb-10 text-sm">Crea nuove parole cambiando fino a 2 lettere.</p>
+            <div class="bg-zinc-900 p-8 rounded-[40px] border border-zinc-800 mb-10 w-full max-w-sm">
+                <div class="flex justify-center items-center gap-6 text-3xl font-800">
+                    <span class="text-zinc-400 text-xl italic uppercase">Pane</span> 
+                    <span class="text-indigo-500 text-sm">➔</span> 
+                    <span class="uppercase">Cane</span>
+                </div>
+            </div>
+            <button class="btn-primary" onclick="showStep(2)">ESPLORA MODALITÀ</button>
+        </div>
+
+        <div id="step-2" class="hidden w-full max-w-sm">
+            <h2 class="text-xl font-900 mb-6 italic uppercase">LE SFIDE:</h2>
+            <div class="scroll-container space-y-3 text-left mb-8">
+                <!-- ZEN -->
+                <div class="flex items-center gap-4 bg-zinc-900/40 p-4 rounded-3xl border border-zinc-800/50">
+                    <span class="text-2xl">🧘</span>
+                    <div>
+                        <p class="font-bold text-sm text-indigo-400">ZEN</p>
+                        <p class="text-[10px] text-zinc-500 font-bold uppercase">Nessun limite di tempo.</p>
+                    </div>
+                </div>
+                <!-- LIVELLI -->
+                <div class="flex items-center gap-4 bg-zinc-900/40 p-4 rounded-3xl border border-zinc-800/50">
+                    <span class="text-2xl">📊</span>
+                    <div>
+                        <p class="font-bold text-sm text-emerald-400">LIVELLI</p>
+                        <p class="text-[10px] text-zinc-500 font-bold uppercase">Raggiungi il target in poche mosse.</p>
+                    </div>
+                </div>
+                <!-- TEMPO -->
+                <div class="flex items-center gap-4 bg-zinc-900/40 p-4 rounded-3xl border border-zinc-800/50">
+                    <span class="text-2xl">⏱️</span>
+                    <div>
+                        <p class="font-bold text-sm text-rose-500">TEMPO</p>
+                        <p class="text-[10px] text-zinc-500 font-bold uppercase">2 minuti per il record di parole.</p>
+                    </div>
+                </div>
+                <!-- COMBO -->
+                <div class="flex items-center gap-4 bg-zinc-900/40 p-4 rounded-3xl border border-zinc-800/50">
+                    <span class="text-2xl">⚡</span>
+                    <div>
+                        <p class="font-bold text-sm text-amber-400">COMBO</p>
+                        <p class="text-[10px] text-zinc-500 font-bold uppercase">+5 secondi per ogni parola.</p>
+                    </div>
+                </div>
+                <!-- BOT -->
+                <div class="flex items-center gap-4 bg-zinc-900/40 p-4 rounded-3xl border border-zinc-800/50">
+                    <span class="text-2xl">🤖</span>
+                    <div>
+                        <p class="font-bold text-sm text-indigo-600">BOT</p>
+                        <p class="text-[10px] text-zinc-500 font-bold uppercase">Sfida l'IA con 3 difficoltà.</p>
+                    </div>
+                </div>
+            </div>
+            <button class="btn-primary w-full" onclick="closeTutorial()">GIOCA ORA</button>
+        </div>
+    </div>
+
+    <div class="app-container">
+        <div class="content-area">
+            <div class="app-wrapper" id="main-wrapper">
+                <!-- Schermate generate da JS -->
+            </div>
+        </div>
+
+        <nav class="bottom-nav">
+            <div class="nav-item active" onclick="navigate(0)"><span class="nav-icon">🧘</span><span>ZEN</span></div>
+            <div class="nav-item" onclick="navigate(1)"><span class="nav-icon">📊</span><span>LIVELLI</span></div>
+            <div class="nav-item" onclick="navigate(2)"><span class="nav-icon">⏱️</span><span>TEMPO</span></div>
+            <div class="nav-item" onclick="navigate(3)"><span class="nav-icon">⚡</span><span>COMBO</span></div>
+            <div class="nav-item" onclick="navigate(4)"><span class="nav-icon">🤖</span><span>BOT</span></div>
+        </nav>
+    </div>
+
+    <template id="screen-template">
+        <div class="screen">
+            <div class="mode-overlay" id="overlay">
+                <div id="start-view" class="flex flex-col items-center w-full">
+                    <h2 class="text-3xl font-900 italic mb-2 uppercase mode-title"></h2>
+                    <p class="text-zinc-500 text-[10px] font-bold mb-6 uppercase mode-desc"></p>
+                    
+                    <div id="bot-config" class="hidden flex flex-col items-center w-full">
+                        <span class="text-[9px] font-black text-zinc-600 uppercase tracking-widest mb-2">Livello Bot</span>
+                        <div class="diff-container">
+                            <div class="diff-option easy" onclick="handleBotDiffClick(0, this)">Facile</div>
+                            <div class="diff-option medium" onclick="handleBotDiffClick(1, this)">Medio</div>
+                            <div class="diff-option hard" onclick="handleBotDiffClick(2, this)">Hard</div>
+                        </div>
+                    </div>
+
+                    <button class="btn-primary mt-4" onclick="startCountdown()">INIZIA SFIDA</button>
+                </div>
+                <div id="countdown-view" class="hidden">
+                    <div class="text-[6rem] font-900 text-indigo-500" id="countdown-num">3</div>
+                </div>
+            </div>
+
+            <div class="flex justify-between items-center h-12">
+                <h2 class="text-xl font-800 italic header-title"></h2>
+                <div class="bg-zinc-900 px-4 py-1.5 rounded-full text-[11px] font-black border border-zinc-800 header-stat">---</div>
+            </div>
+
+            <div class="flex-1 flex flex-col justify-center items-center">
+                <div id="target-view" class="hidden bg-emerald-500/10 text-emerald-400 px-4 py-1.5 rounded-full text-[10px] font-black border border-emerald-500/30 uppercase mb-8">
+                    OBIETTIVO: <span id="target-word" class="ml-1">---</span>
+                </div>
+
+                <div id="bot-timers" class="hidden flex gap-12 mb-8">
+                    <div class="text-center"><p class="text-[9px] font-bold text-zinc-500 mb-1 uppercase">Tu</p><p class="text-3xl font-900" id="player-timer">02:00</p></div>
+                    <div class="text-center"><p class="text-[9px] font-bold text-zinc-500 mb-1 uppercase">Bot</p><p class="text-3xl font-900" id="bot-timer">02:00</p></div>
+                </div>
+
+                <div class="word-main" id="word-display">---</div>
+                <div class="history-pills flex flex-wrap justify-center gap-1" id="history-container"></div>
+            </div>
+
+            <div class="mt-auto pb-8 opacity-30 pointer-events-none game-ui">
+                <input type="text" class="game-input" placeholder="Scrivi parola..." autocomplete="off" spellcheck="false" autocapitalize="characters">
+            </div>
+        </div>
+    </template>
+
+    <script>
+        const commonWords = ["APE", "AGO", "UVA", "ORO", "CASA", "SOLE", "PANE", "MARE", "LUNA", "LUCE", "VINO", "PERA", "CANE", "ROSA", "SALE", "MOTO", "BICI", "ARIA", "NIDO", "ORSO", "BENE", "MALE", "VITA", "MANO", "NASO", "RISO", "OLIO", "UOVO", "LUPO", "RANA", "TOPO", "NERO", "FATA", "NANO", "ORCO", "NEVE", "FILO", "DITO", "RETE", "NODO", "BUCO", "MURO", "VASO", "LAGO", "GELO", "PEPE", "FUMO", "GATTO", "TRENO", "PALLA", "ERBA", "LIBRO", "TESTA", "BOCCA", "CODA", "PESCE", "CIELO", "PORTA", "TETTO", "FUOCO", "SABBIA", "COSA", "SERA", "TIPO", "MODO"];
+        let fullDict = new Set(commonWords);
+        let currentIdx = 0, botDifficulty = 0;
+        
+        const modesConfig = [
+            { title: "ZEN", desc: "Senza limiti di tempo.", color: "text-indigo-400" },
+            { title: "LIVELLI", desc: "Raggiungi il target.", color: "text-emerald-400" },
+            { title: "TEMPO", desc: "Record in 2 minuti.", color: "text-rose-500" },
+            { title: "COMBO", desc: "Bonus +5s ogni parola.", color: "text-amber-400" },
+            { title: "BOT", desc: "Sconfiggi l'IA.", color: "text-indigo-500" }
+        ];
+
+        let sessions = Array(5).fill(null).map(() => ({ active: false, word: '', target: '', history: [], score: 0, timer: 0, botTimer: 0, turn: 'player', loop: null }));
+
+        async function loadDict() {
+            try {
+                const res = await fetch('https://raw.githubusercontent.com/napolux/paroleitaliane/master/paroleitaliane/660000_parole_italiane.txt');
+                const text = await res.text();
+                text.split('\n').forEach(w => { 
+                    const c = w.trim().toUpperCase(); 
+                    if(c.length >= 2) fullDict.add(c); 
+                });
+            } catch(e) { console.warn("Dizionario esteso non caricato, uso fallback."); }
+        }
+
+        function createScreens() {
+            const wrapper = document.getElementById('main-wrapper');
+            wrapper.innerHTML = ""; // Pulisci prima di generare
+            const template = document.getElementById('screen-template');
+            modesConfig.forEach((m, i) => {
+                const clone = template.content.cloneNode(true);
+                const sc = clone.querySelector('.screen');
+                sc.id = `screen-${i}`;
+                sc.querySelector('.mode-title').textContent = m.title;
+                sc.querySelector('.mode-title').classList.add(m.color);
+                sc.querySelector('.mode-desc').textContent = m.desc;
+                sc.querySelector('.header-title').textContent = m.title;
+                sc.querySelector('.header-title').classList.add(m.color);
+                
+                if(i === 4) {
+                    sc.querySelector('#bot-config').classList.remove('hidden');
+                    sc.querySelector('.diff-option.easy').classList.add('selected');
+                }
+                
+                sc.querySelector('.game-input').addEventListener('keypress', (e) => {
+                    if(e.key === 'Enter') handleInput(i, e.target);
+                });
+                wrapper.appendChild(clone);
+            });
+        }
+
+        function handleBotDiffClick(d, el) {
+            botDifficulty = d;
+            el.parentElement.querySelectorAll('.diff-option').forEach(opt => opt.classList.remove('selected'));
+            el.classList.add('selected');
+        }
+
+        function showStep(n) {
+            document.getElementById('step-1').classList.add('hidden');
+            document.getElementById('step-2').classList.remove('hidden');
+        }
+
+        function closeTutorial() {
+            document.getElementById('tutorial-overlay').classList.add('hidden');
+        }
+
+        function navigate(i) {
+            resetSession(currentIdx);
+            currentIdx = i;
+            const wrapper = document.getElementById('main-wrapper');
+            if (wrapper) wrapper.style.transform = `translateX(-${i * 20}%)`;
+            
+            document.querySelectorAll('.nav-item').forEach((el, idx) => {
+                el.classList.toggle('active', idx === i);
+            });
+            resetSession(i);
+        }
+
+        function resetSession(i) {
+            const s = sessions[i]; 
+            if(s.loop) clearInterval(s.loop);
+            sessions[i] = { active: false, word: '', target: '', history: [], score: 0, timer: 0, botTimer: 0, turn: 'player', loop: null };
+            
+            const sc = document.getElementById(`screen-${i}`);
+            if(!sc) return;
+            
+            sc.querySelector('#overlay').classList.remove('hidden');
+            sc.querySelector('#start-view').classList.remove('hidden');
+            sc.querySelector('#countdown-view').classList.add('hidden');
+            sc.querySelector('.game-ui').classList.add('opacity-30', 'pointer-events-none');
+            sc.querySelector('.game-input').value = '';
+            sc.querySelector('#target-view').classList.add('hidden');
+            sc.querySelector('#bot-timers').classList.add('hidden');
+            sc.querySelector('#word-display').classList.remove('bot-thinking');
+            sc.querySelector('.header-stat').textContent = "---";
+        }
+
+        function startCountdown() {
+            const i = currentIdx, sc = document.getElementById(`screen-${i}`);
+            sc.querySelector('#start-view').classList.add('hidden');
+            sc.querySelector('#countdown-view').classList.remove('hidden');
+            let c = 3; 
+            sc.querySelector('#countdown-num').textContent = c;
+            const inv = setInterval(() => {
+                c--;
+                if(c > 0) sc.querySelector('#countdown-num').textContent = c;
+                else { clearInterval(inv); startGame(i); }
+            }, 800);
+        }
+
+        function startGame(i) {
+            const s = sessions[i], sc = document.getElementById(`screen-${i}`);
+            s.active = true;
+            s.word = commonWords[Math.floor(Math.random() * commonWords.length)];
+            
+            if(i === 1) { 
+                const filtered = Array.from(fullDict).filter(w => Math.abs(w.length - s.word.length) <= 1);
+                s.target = filtered[Math.floor(Math.random() * filtered.length)];
+                sc.querySelector('#target-view').classList.remove('hidden');
+                sc.querySelector('#target-word').textContent = s.target;
+                s.timer = 15; 
+            }
+            
+            s.history = [s.word];
+            sc.querySelector('#overlay').classList.add('hidden');
+            sc.querySelector('.game-ui').classList.remove('opacity-30', 'pointer-events-none');
+            sc.querySelector('.game-input').focus();
+            
+            if(i === 2) { s.timer = 120; s.loop = setInterval(() => commonTick(i), 1000); }
+            if(i === 3) { s.timer = 45; s.loop = setInterval(() => commonTick(i), 1000); }
+            if(i === 4) { 
+                s.timer = 120; s.botTimer = 120; 
+                sc.querySelector('#bot-timers').classList.remove('hidden');
+                s.loop = setInterval(() => botTick(i), 1000); 
+            }
+            render(i);
+        }
+
+        function commonTick(i) {
+            sessions[i].timer--; 
+            render(i);
+            if(sessions[i].timer <= 0) endGame(i, "Tempo scaduto!");
+        }
+
+        function botTick(i) {
+            const s = sessions[i];
+            if(s.turn === 'player') s.timer--; else s.botTimer--;
+            render(i);
+            if(s.timer <= 0) endGame(i, "IA HA VINTO!", false);
+            if(s.botTimer <= 0) endGame(i, "VITTORIA TOTALE!", true);
+        }
+
+        function getDist(a, b) {
+            const matrix = Array.from({ length: a.length + 1 }, (_, i) => [i]);
+            for (let j = 1; j <= b.length; j++) matrix[0][j] = j;
+            for (let i = 1; i <= a.length; i++) {
+                for (let j = 1; j <= b.length; j++) {
+                    const cost = a[i - 1] === b[j - 1] ? 0 : 1;
+                    matrix[i][j] = Math.min(
+                        matrix[i - 1][j] + 1, matrix[i][j - 1] + 1, matrix[i - 1][j - 1] + cost
+                    );
+                }
+            }
+            return matrix[a.length][b.length];
+        }
+
+        function handleInput(i, el) {
+            const s = sessions[i], val = el.value.trim().toUpperCase(); el.value = '';
+            if(!val || !s.active || s.turn !== 'player') return;
+            if(val === s.word) return showError("STESSA PAROLA!");
+            if(s.history.includes(val)) return showError("GIÀ USATA!");
+            if(!fullDict.has(val)) return showError("NON ESISTE!");
+            
+            const d = getDist(s.word, val);
+            if(d > 2) return showError("CAMBIA MAX 2 LETTERE!");
+
+            s.word = val; s.history.push(val); s.score++;
+            
+            if(i === 1) {
+                s.timer--; if(s.word === s.target) endGame(i, "OBIETTIVO RAGGIUNTO!", true);
+                else if(s.timer <= 0) endGame(i, "FINITO!");
+            }
+            if(i === 3) s.timer += 5;
+            if(i === 4) { 
+                s.turn = 'bot'; 
+                render(i);
+                document.getElementById(`screen-${i}`).querySelector('#word-display').classList.add('bot-thinking');
+                const delay = [3200, 1600, 400][botDifficulty];
+                setTimeout(() => botBrain(i), delay); 
+            }
+            render(i);
+        }
+
+        function botBrain(i) {
+            const s = sessions[i];
+            if(!s.active) return;
+            
+            const searchPool = botDifficulty === 0 ? commonWords : Array.from(fullDict);
+            const candidates = searchPool.filter(w => !s.history.includes(w) && getDist(s.word, w) <= (botDifficulty === 2 ? 2 : 1));
+
+            if(candidates.length > 0) {
+                let choice = candidates[Math.floor(Math.random() * Math.min(candidates.length, 12))];
+                s.word = choice; s.history.push(choice); s.turn = 'player';
+                document.getElementById(`screen-${i}`).querySelector('#word-display').classList.remove('bot-thinking');
+                render(i);
+            } else {
+                endGame(i, "IL BOT HA CEDUTO!", true);
+            }
+        }
+
+        function render(i) {
+            const s = sessions[i], sc = document.getElementById(`screen-${i}`);
+            if(!sc) return;
+            sc.querySelector('#word-display').textContent = s.word;
+            sc.querySelector('#history-container').innerHTML = s.history.slice(-5).map(w => `<span class="pill uppercase">${w}</span>`).join('');
+            const stat = sc.querySelector('.header-stat');
+            
+            if(i === 1) stat.textContent = `MOSSE: ${s.timer}`;
+            else if(i === 4) {
+                sc.querySelector('#player-timer').textContent = fmt(s.timer);
+                sc.querySelector('#bot-timer').textContent = fmt(s.botTimer);
+                stat.textContent = s.turn === 'player' ? "TU" : "IA";
+                stat.className = `header-stat px-4 py-1.5 rounded-full text-[11px] font-black border ${s.turn === 'player' ? 'border-indigo-500 text-indigo-500' : 'border-rose-700 text-rose-500'}`;
+            } else stat.textContent = i === 0 ? "LIBERO" : fmt(s.timer);
+        }
+
+        function fmt(s) { 
+            const m = Math.floor(s/60);
+            const sec = s%60;
+            return `${m}:${sec.toString().padStart(2,'0')}`; 
+        }
+
+        function showError(msg) {
+            const t = document.getElementById('error-toast');
+            t.textContent = msg; t.classList.add('show');
+            setTimeout(() => t.classList.remove('show'), 2000);
+        }
+
+        function endGame(i, msg, win=false) {
+            const s = sessions[i]; s.active = false; if(s.loop) clearInterval(s.loop);
+            const sc = document.getElementById(`screen-${i}`);
+            if(!sc) return;
+            sc.querySelector('#overlay').classList.remove('hidden');
+            sc.querySelector('#start-view h2').textContent = win ? "VITTORIA!" : "HAI PERSO";
+            sc.querySelector('#start-view p').textContent = msg;
+            sc.querySelector('#word-display').classList.remove('bot-thinking');
+        }
+
+        // Inizializzazione sicura
+        document.addEventListener('DOMContentLoaded', () => {
+            createScreens(); 
+            loadDict(); // Carica in background
+            navigate(0); 
+        });
+    </script>
+</body>
+</html>
+
+```
